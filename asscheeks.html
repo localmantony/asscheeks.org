@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Up Close and Personal</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // Set up scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x4C4E52);  // gray background because black was too harsh
+        document.body.appendChild(renderer.domElement);
+
+        // controls to rotate around and zoom in on the object
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 1; // max zoom in distance
+        controls.maxDistance = 2.5; //  max zoom out distance
+        controls.minAzimuthAngle = -Math.PI / 2 - (Math.PI / 8); // limit rotation to -90 degrees, prevent users from viewing front of model
+        controls.maxAzimuthAngle = Math.PI / 2 - (Math.PI / 8);  // pi/8 adjustment for initial render angle
+
+        // lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 10.0); // white, 10 intensity
+        scene.add(ambientLight);
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 3.0); // white, 3 intensity
+        directionalLight1.position.set(5, 5, 5);    // additional external light 
+        scene.add(directionalLight1);
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 2.5);  // white, 2.5 intensity
+        directionalLight2.position.set(-5, 5, -5);   // additional external light
+        scene.add(directionalLight2);
+
+        // load  model
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+            'buttclean.glb',
+            (gltf) => {
+                const model = gltf.scene;
+                scene.add(model);
+
+                // rotate to backside of model upon loading into site
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.sub(center);
+                model.rotation.y = Math.PI - (Math.PI / 8);   // rotate 180 minus a bit so you load in at an angle
+
+                // initial camera settings
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                cameraZ *= 1.8; // Zoom out a bit
+                camera.position.set(0, 0, cameraZ);
+                controls.update();
+            },
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            (error) => {
+                console.error('An error occurred while loading the model:', error);
+            }
+        );
+
+        // handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // animation loop - TODO - add slow rotation back and forth 
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
